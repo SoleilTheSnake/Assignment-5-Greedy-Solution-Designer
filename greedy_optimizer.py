@@ -12,32 +12,15 @@ import time
 # ============================================================================
 
 def maximize_deliveries(time_windows):
-    """
-    Schedule the maximum number of deliveries given time window constraints.
-    
-    This is the activity selection problem. Each delivery has a start and end time.
-    You can only do one delivery at a time. A new delivery can start when the 
-    previous one ends.
-    
-    Args:
-        time_windows (list): List of dicts with 'delivery_id', 'start', 'end'
-    
-    Returns:
-        list: List of delivery_ids that can be completed (maximum number possible)
-    
-    Example:
-        time_windows = [
-            {'delivery_id': 'A', 'start': 1, 'end': 3},
-            {'delivery_id': 'B', 'start': 2, 'end': 5},
-            {'delivery_id': 'C', 'start': 4, 'end': 7}
-        ]
-        maximize_deliveries(time_windows) returns ['A', 'C']
-    """
-    # TODO: Implement greedy algorithm for activity selection
-    # Hint: What greedy choice gives you the most room for future deliveries?
-    # Hint: Think about sorting by a specific attribute
-    
-    pass  # Delete this and write your code
+    sorted_deliveries = sorted(time_windows, key=lambda x: x['end'])
+    selected = []
+    last_end = 0
+    for delivery in sorted_deliveries:
+        if delivery['start'] >= last_end:
+            selected.append(delivery['delivery_id'])
+            last_end = delivery['end']
+    return selected
+
 
 
 # ============================================================================
@@ -45,38 +28,51 @@ def maximize_deliveries(time_windows):
 # ============================================================================
 
 def optimize_truck_load(packages, weight_limit):
-    """
-    Maximize total priority value of packages loaded within weight constraint.
-    
-    This is the fractional knapsack problem. You can take fractions of packages
-    (e.g., deliver part of a package). Goal is to maximize priority value while
-    staying within the weight limit.
-    
-    Args:
-        packages (list): List of dicts with 'package_id', 'weight', 'priority'
-        weight_limit (int): Maximum weight the truck can carry
-    
-    Returns:
-        dict: {
-            'total_priority': float (total priority value loaded),
-            'total_weight': float (total weight loaded),
-            'packages': list of dicts with 'package_id' and 'fraction' (how much of package taken)
-        }
-    
-    Example:
-        packages = [
-            {'package_id': 'A', 'weight': 10, 'priority': 60},
-            {'package_id': 'B', 'weight': 20, 'priority': 100},
-            {'package_id': 'C', 'weight': 30, 'priority': 120}
-        ]
-        weight_limit = 50
-        optimize_truck_load(packages, 50) returns packages A (full), B (full), C (partial)
-    """
-    # TODO: Implement greedy algorithm for fractional knapsack
-    # Hint: What ratio determines which packages are most valuable per pound?
-    # Hint: You can take fractions - if you have 5 lbs capacity left and a 10 lb package, take 0.5 of it
-    
-    pass  # Delete this and write your code
+    # Sort packages by priority-to-weight ratio (highest first)
+    sorted_packages = sorted(
+        packages,
+        key=lambda x: x['priority'] / x['weight'],
+        reverse=True
+    )
+
+    total_priority = 0.0
+    total_weight = 0.0
+    selected_packages = []
+
+    for package in sorted_packages:
+        if total_weight >= weight_limit:
+            break
+
+        weight = package['weight']
+        priority = package['priority']
+
+        if total_weight + weight <= weight_limit:
+            # Take full package
+            selected_packages.append({
+                'package_id': package['package_id'],
+                'fraction': 1
+            })
+            total_priority += priority
+            total_weight += weight
+        else:
+            # Take fractional part
+            remaining_capacity = weight_limit - total_weight
+            fraction = remaining_capacity / weight
+
+            selected_packages.append({
+                'package_id': package['package_id'],
+                'fraction': fraction
+            })
+
+            total_priority += priority * fraction
+            total_weight += weight * fraction
+            break  # Truck is now full
+
+    return {
+        'total_priority': total_priority,
+        'total_weight': total_weight,
+        'packages': selected_packages
+    }
 
 
 # ============================================================================
@@ -84,36 +80,32 @@ def optimize_truck_load(packages, weight_limit):
 # ============================================================================
 
 def minimize_drivers(deliveries):
-    """
-    Assign deliveries to the minimum number of drivers needed.
+    deliveries = sorted(deliveries, key=lambda x: x['start'])
     
-    Each delivery has a start and end time. A driver can do a delivery if it 
-    doesn't overlap with their other assigned deliveries. Goal is to use the
-    fewest drivers possible.
+    drivers = []
     
-    Args:
-        deliveries (list): List of dicts with 'delivery_id', 'start', 'end'
+    # Assign deliveries
+    for delivery in deliveries:
+        assigned = False
+        
+        # Try to assign to existing driver
+        for driver in drivers:
+            last_delivery = driver[-1]
+            
+            # If no overlap
+            if delivery['start'] >= last_delivery['end']:
+                driver.append(delivery)
+                assigned = True
+                break
+        
+        # If not assigned, create new driver
+        if not assigned:
+            drivers.append([delivery])
     
-    Returns:
-        dict: {
-            'num_drivers': int (minimum drivers needed),
-            'assignments': list of lists (each sublist is one driver's deliveries)
-        }
-    
-    Example:
-        deliveries = [
-            {'delivery_id': 'A', 'start': 1, 'end': 3},
-            {'delivery_id': 'B', 'start': 2, 'end': 4},
-            {'delivery_id': 'C', 'start': 5, 'end': 7}
-        ]
-        minimize_drivers(deliveries) returns 2 drivers: [[A, C], [B]]
-    """
-    # TODO: Implement greedy algorithm for interval scheduling
-    # Hint: How do you know if a delivery overlaps with another?
-    # Hint: Can you assign a delivery to an existing driver, or do you need a new one?
-    
-    pass  # Delete this and write your code
-
+    return {
+        'num_drivers': len(drivers),
+        'assignments': drivers
+    }
 
 # ============================================================================
 # TESTING & BENCHMARKING
@@ -297,9 +289,9 @@ if __name__ == "__main__":
     
     # Uncomment these as you complete each part:
     
-    # test_package_prioritization()
-    # test_truck_loading()
-    # test_driver_assignment()
-    # benchmark_scenarios()
+    #test_package_prioritization()
+    #test_truck_loading()
+    #test_driver_assignment()
+    benchmark_scenarios()
     
     print("\n⚠ Uncomment the test functions in the main block to run tests!")
